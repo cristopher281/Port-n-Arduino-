@@ -16,4 +16,3 @@ echo     call venv\Scripts\activate.bat
 echo y luego:
 echo     python dashboard.py
 
-pause

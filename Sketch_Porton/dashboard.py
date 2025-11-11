@@ -20,12 +20,13 @@ HISTORY_SIZE = 120 # Número de puntos a mostrar en el gráfico
 
 # --- PALETA DE COLORES (Tema Oscuro) ---
 BG_COLOR = "#2b2b2b"       # Fondo principal
-FRAME_COLOR = "#3c3c3c"    # Fondo de 'tarjetas' o 'frames'
-TEXT_COLOR = "#f0f0f0"     # Texto principal (blanco suave)
-ACCENT_COLOR = "#007acc"   # Acento (azul brillante)
-SUCCESS_COLOR = "#28a745"  # Verde para 'Conectado'
-DANGER_COLOR = "#dc3545"   # Rojo para 'Peligro' o 'Error'
-PLOT_BG_COLOR = "#333333"  # Fondo del gráfico
+FRAME_COLOR = "#24282c"    # Fondo de 'tarjetas' o 'frames'
+TEXT_COLOR = "#e8f0f2"     # Texto principal (blanco suave)
+ACCENT_COLOR = "#00e5ff"   # Acento neon (cian)
+ACCENT2_COLOR = "#6a00ff"  # Acento secundario (púrpura)
+SUCCESS_COLOR = "#2bd97b"  # Verde para 'Conectado'
+DANGER_COLOR = "#ff5c7c"   # Rojo para 'Peligro' o 'Error'
+PLOT_BG_COLOR = "#17191a"  # Fondo del gráfico
 
 # --- FUENTES ---
 FONT_NORMAL = ("Helvetica", 11)
@@ -67,62 +68,68 @@ class ArduinoDashboard:
     def _crear_estilos(self):
         """Configura los estilos de ttk para el tema oscuro."""
         self.style = ttk.Style()
-        self.style.theme_use('clam') # Un tema base que es fácil de sobreescribir
+        self.style.theme_use('clam')
 
         # --- Estilos base ---
-        self.style.configure(".",
+        self.style.configure('.',
                              background=BG_COLOR,
                              foreground=TEXT_COLOR,
-                             font=FONT_NORMAL,
-                             fieldbackground=FRAME_COLOR,
-                             bordercolor=FRAME_COLOR)
-        
-        # --- Frame (TFrame) ---
-        self.style.configure("TFrame", background=BG_COLOR)
-        self.style.configure("Card.TFrame", background=FRAME_COLOR, relief="raised", borderwidth=1)
+                             font=FONT_NORMAL)
 
-        # --- Label (TLabel) ---
-        self.style.configure("TLabel", background=BG_COLOR)
-        self.style.configure("Title.TLabel", font=FONT_TITLE, foreground=TEXT_COLOR, background=BG_COLOR)
-        self.style.configure("Data.TLabel", font=FONT_DATA, foreground=ACCENT_COLOR, background=FRAME_COLOR)
-        self.style.configure("Success.TLabel", foreground=SUCCESS_COLOR, background=BG_COLOR)
-        self.style.configure("Danger.TLabel", foreground=DANGER_COLOR, background=BG_COLOR)
+        # --- Frames tipo tarjeta ---
+        self.style.configure('Card.TFrame', background=FRAME_COLOR, relief='flat', borderwidth=1)
+        self.style.configure('Panel.TFrame', background=BG_COLOR)
 
-        # --- Button (TButton) ---
-        self.style.configure("TButton", font=FONT_BOLD, relief="flat", background=ACCENT_COLOR, foreground="white")
-        self.style.map("TButton",
-                       background=[('active', '#005f9e')],
-                       foreground=[('active', 'white')])
+        # --- Labels ---
+        self.style.configure('Title.TLabel', font=FONT_TITLE, foreground=TEXT_COLOR, background=BG_COLOR)
+        self.style.configure('Data.TLabel', font=FONT_DATA, foreground=ACCENT_COLOR, background=FRAME_COLOR)
+        self.style.configure('Small.TLabel', font=FONT_NORMAL, foreground=TEXT_COLOR, background=BG_COLOR)
+        self.style.configure('Success.TLabel', foreground=SUCCESS_COLOR, background=BG_COLOR)
+        self.style.configure('Danger.TLabel', foreground=DANGER_COLOR, background=BG_COLOR)
 
-        # Botón de desconectar (rojo)
-        self.style.configure("Danger.TButton", background=DANGER_COLOR, foreground="white")
-        self.style.map("Danger.TButton",
-                       background=[('active', '#a71c2a')],
-                       foreground=[('active', 'white')])
+        # --- Botones con aspecto plano y acento neon ---
+        self.style.configure('Accent.TButton', font=FONT_BOLD, foreground='#0b0b0b', background=ACCENT_COLOR, relief='flat', padding=8)
+        self.style.map('Accent.TButton',
+                       background=[('active', ACCENT2_COLOR), ('disabled', '#444')],
+                       foreground=[('active', '#ffffff')])
+
+        self.style.configure('Danger.TButton', font=FONT_BOLD, foreground='#ffffff', background=DANGER_COLOR, relief='flat', padding=8)
+        self.style.map('Danger.TButton', background=[('active', '#e04b65')])
 
 
     def _crear_widgets(self):
         """Crea y posiciona todos los elementos de la GUI."""
-        
-        # --- Frame Principal ---
-        main_frame = ttk.Frame(self.root, padding="15")
+        # --- Frame Principal (usamos tk.Frame para fondo consistente) ---
+        main_frame = tk.Frame(self.root, bg=BG_COLOR, padx=15, pady=15)
         main_frame.pack(expand=True, fill=tk.BOTH)
 
-        # --- Título ---
-        ttk.Label(main_frame, text="Dashboard Portón", style="Title.TLabel").pack(pady=(0, 20))
+        # --- Encabezado con logo y título ---
+        header = tk.Frame(main_frame, bg=BG_COLOR)
+        header.pack(fill=tk.X, pady=(0, 12))
+
+        # Pequeño logo circular hecho con Canvas
+        logo = tk.Canvas(header, width=40, height=40, bg=BG_COLOR, highlightthickness=0)
+        logo.create_oval(6, 6, 34, 34, fill=ACCENT_COLOR, outline=ACCENT2_COLOR, width=2)
+        logo.pack(side=tk.LEFT, padx=(4, 12))
+
+        title_lbl = tk.Label(header, text="Dashboard Portón", font=FONT_TITLE, fg=TEXT_COLOR, bg=BG_COLOR)
+        title_lbl.pack(side=tk.LEFT, anchor='c')
+
+        # Línea de acento debajo del header
+        accent_line = tk.Frame(main_frame, height=2, bg=ACCENT_COLOR)
+        accent_line.pack(fill=tk.X, pady=(8, 12))
 
         # --- Sección de Conexión ---
         frame_conexion = ttk.Frame(main_frame)
         frame_conexion.pack(fill=tk.X, pady=5)
-        
-        self.btn_conectar = ttk.Button(frame_conexion, text="Conectar", command=self.conectar_arduino)
+
+        self.btn_conectar = ttk.Button(frame_conexion, text="Conectar", command=self.conectar_arduino, style='Accent.TButton')
         self.btn_conectar.pack(side=tk.LEFT, padx=5, ipady=5)
-        
+
         self.lbl_conexion = ttk.Label(frame_conexion, textvariable=self.estado_conexion, style="Danger.TLabel")
         self.lbl_conexion.pack(side=tk.LEFT, padx=10, anchor="w")
 
         # --- Área de gráfico ---
-        # --- CAMBIO: Se aplica el tema oscuro al gráfico ---
         plot_frame = ttk.Frame(main_frame, style="Card.TFrame")
         plot_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
@@ -140,19 +147,19 @@ class ArduinoDashboard:
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.canvas.draw()
-        
+
         # --- Sección de Datos Sensores ---
         frame_datos = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
         frame_datos.pack(fill=tk.X, pady=10)
         frame_datos.columnconfigure(1, weight=1) # Columna de valor se expande
 
         # Distancia
-        ttk.Label(frame_datos, text="Distancia Obstáculo:", style="TLabel", background=FRAME_COLOR).grid(row=0, column=0, sticky="w", padx=10, pady=10)
+        ttk.Label(frame_datos, text="Distancia Obstáculo:", style="Small.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=10)
         lbl_dist_valor = ttk.Label(frame_datos, textvariable=self.datos_distancia, style="Data.TLabel")
         lbl_dist_valor.grid(row=0, column=1, sticky="e", padx=10)
 
         # Movimiento
-        ttk.Label(frame_datos, text="Sensor Movimiento:", style="TLabel", background=FRAME_COLOR).grid(row=1, column=0, sticky="w", padx=10, pady=10)
+        ttk.Label(frame_datos, text="Sensor Movimiento:", style="Small.TLabel").grid(row=1, column=0, sticky="w", padx=10, pady=10)
         self.lbl_mov_valor = ttk.Label(frame_datos, textvariable=self.datos_movimiento, style="Data.TLabel")
         self.lbl_mov_valor.config(foreground="gray")
         self.lbl_mov_valor.grid(row=1, column=1, sticky="e", padx=10)
@@ -161,15 +168,16 @@ class ArduinoDashboard:
         frame_control = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
         frame_control.pack(fill=tk.X, pady=10)
 
-        ttk.Label(frame_control, text="Control Manual del Portón:", style="TLabel", background=FRAME_COLOR, font=FONT_BOLD).pack(pady=5)
+        ttk.Label(frame_control, text="Control Manual del Portón:", style="Small.TLabel", font=FONT_BOLD).pack(pady=5)
 
-        frame_botones = ttk.Frame(frame_control, style="TFrame", background=FRAME_COLOR)
+        # Usamos un Frame de Tk clásico para poder dar color de fondo directamente
+        frame_botones = tk.Frame(frame_control, bg=FRAME_COLOR)
         frame_botones.pack()
 
-        btn_abrir = ttk.Button(frame_botones, text="ABRIR (180°)", command=lambda: self.enviar_comando_servo(180))
+        btn_abrir = ttk.Button(frame_botones, text="ABRIR (180°)", command=lambda: self.enviar_comando_servo(180), style='Accent.TButton')
         btn_abrir.pack(side=tk.LEFT, padx=10, pady=10, ipady=10, fill=tk.X, expand=True)
 
-        btn_cerrar = ttk.Button(frame_botones, text="CERRAR (0°)", command=lambda: self.enviar_comando_servo(0))
+        btn_cerrar = ttk.Button(frame_botones, text="CERRAR (0°)", command=lambda: self.enviar_comando_servo(0), style='Accent.TButton')
         btn_cerrar.pack(side=tk.LEFT, padx=10, pady=10, ipady=10, fill=tk.X, expand=True)
 
     def conectar_arduino(self):
@@ -338,12 +346,22 @@ class ArduinoDashboard:
 
 # --- Punto de entrada principal ---
 if __name__ == "__main__":
+    # Añadimos diagnóstico extra para capturar problemas de arranque (p. ej. errores de Tcl/Tk)
+    import traceback, os
+
+    print("Args de Python:", sys.argv)
+    # Imprimir algunas variables de entorno relevantes para Tcl/Tk
+    for k in ["TK_LIBRARY", "TCL_LIBRARY", "TERM", "DISPLAY", "PYTHONHOME", "PYTHONPATH"]:
+        if k in os.environ:
+            print(f"ENV {k}={os.environ[k]}")
+
     try:
         root = tk.Tk()
         app = ArduinoDashboard(root)
         root.mainloop()
-    except Exception as e:
-        print(f"Error fatal: {e}")
+    except Exception:
+        print("Error fatal durante arranque de la GUI. Volcando traceback completo:")
+        traceback.print_exc()
     finally:
         print("Aplicación cerrada.")
         sys.exit()

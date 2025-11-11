@@ -1,3 +1,55 @@
+# Dashboard Portón — despliegue local
+
+Este directorio contiene la interfaz de escritorio (Tkinter) que se conecta a tu Arduino vía puerto serie y muestra datos de distancia y detección de movimiento, además de permitir controlar un servo.
+
+Archivos importantes
+- `dashboard.py` — aplicación principal (Tkinter + Matplotlib).
+- `Porton.ino` — sketch Arduino (subir a la placa Mega/Nano/etc.).
+- `requirements.txt` — dependencias Python: pyserial, matplotlib.
+- `run_dashboard.bat` — script para ejecutar el dashboard en Windows (usa `venv` si existe).
+- `setup_venv.bat` — crea un virtualenv y instala dependencias.
+
+Requisitos
+- Windows con Python 3.8+ instalado y `python` en PATH.
+- Arduino Mega (o la placa que uses) con el sketch `Porton.ino` cargado.
+
+Pasos para ejecutar localmente (recomendado)
+
+1. Clona o abre esta carpeta en tu PC.
+2. (Opcional pero recomendado) Crea un entorno virtual e instala dependencias:
+
+    Abre cmd en esta carpeta y ejecuta:
+
+    ```cmd
+    setup_venv.bat
+    ```
+
+3. Ejecuta el dashboard:
+
+    - Si usaste `setup_venv.bat`, puedes ejecutar:
+
+        ```cmd
+        call venv\Scripts\activate.bat
+        python dashboard.py
+        ```
+
+    - O usa el script que detecta el virtualenv automáticamente:
+
+        ```cmd
+        run_dashboard.bat
+        ```
+
+4. En la interfaz pulsar "Conectar" para abrir el puerto serie configurado en `dashboard.py` (por defecto `COM4`, 9600 bps).
+
+Notas
+- Si usas Arduino connected por USB asegúrate de seleccionar el puerto correcto en `dashboard.py` (PUERTO_SERIAL).
+- Si el Arduino está usando un módulo Bluetooth o `Serial1`, ajusta `Porton.ino` según corresponda.
+- Para crear un ejecutable `.exe` (opcional) puedo añadir un script con PyInstaller.
+
+Contacto
+- Si necesitas que prepare un instalador `.exe` o despliegue en Raspberry Pi, dime y lo preparo.
+# Sketch Portón (Sketch_Porton)
+
 Este directorio contiene el sketch mejorado para el proyecto del portón automatizado.
 
 Archivos:
