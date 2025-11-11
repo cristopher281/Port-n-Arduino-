@@ -1,3 +1,123 @@
+# Dashboard Portón — guía de despliegue y resolución de problemas
+
+Este documento explica cómo levantar el proyecto localmente (GUI de escritorio) y cómo preparar la versión web para deploy en servicios como Render. Incluye soluciones a los problemas que ya hemos encontrado y comandos listos para usar en Windows (cmd.exe).
+
+## Estructura importante
+- `dashboard.py` — aplicación de escritorio (Tkinter + Matplotlib) que se comunica por serie con el Arduino.
+- `Porton.ino` — sketch Arduino para el hardware (envía líneas `D:<dist>,M:<0|1>`).
+- `web_app/` — versión web (Flask + SocketIO + Chart.js) pensada para deploy en la nube.
+
+## Requisitos
+- Windows 10/11 con Python 3.10+ en PATH.
+- Arduino/Placa conectada por USB si vas a usar la app de escritorio.
+- Opcional: `arduino-cli` o Arduino IDE para subir el sketch.
+
+---
+
+## 1) Preparar entorno virtual y dependencias
+
+Abre cmd y sitúate en la carpeta del proyecto:
+
+```cmd
+cd /d "c:\Users\DELL\OneDrive\Escritorio\Porton-Arduino\Sketch_Porton"
+python -m venv venv
+call venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+Si `requirements.txt` no incluye `matplotlib` o `pyserial` instala:
+
+```cmd
+pip install pyserial matplotlib
+```
+
+---
+
+## 2) Ejecutar el dashboard de escritorio (Tkinter)
+
+```cmd
+call venv\Scripts\activate.bat
+python dashboard.py
+```
+
+La ventana se abrirá en tu escritorio. Usa el botón "Conectar" para abrir el puerto serie configurado en `dashboard.py` (por defecto `COM4`).
+
+---
+
+## 3) Problemas comunes y soluciones (rápidas)
+
+- Error: `TclError: unknown option "-background"`
+  - Causa: pasar `background=` a widgets `ttk.*` (no soportado por algunos temas).
+  - Solución: eliminar `background=` en ttk; usar `ttk.Style().configure(...)` o `tk.Frame(..., bg=...)`.
+
+- Error: `Too early to create variable: no default root window`
+  - Causa: crear `tk.StringVar()` antes de `tk.Tk()`.
+  - Solución: crear variables Tk sólo después de `root = tk.Tk()` (mover la creación dentro del constructor/initializer de la GUI).
+
+- Matplotlib dibuja lento o bloquea
+  - Recomendación: limitar `HISTORY_SIZE`, usar `canvas.draw_idle()`, reducir frecuencia de emisión desde Arduino o decimar puntos.
+
+- Problema: paquetes instalados en otra instalación de Python
+  - Diagnóstico: `where python` para ver los intérpretes; activa el `venv` antes de instalar.
+
+- Puerto COM incorrecto
+  - Verifica en el Administrador de dispositivos de Windows y actualiza `PUERTO_SERIAL` en `dashboard.py` si es necesario.
+
+---
+
+## 4) Subir y verificar el sketch Arduino
+
+Abre `Porton.ino` en el IDE de Arduino y sube a la placa correcta. Si usas Mega preferir la variante que usa `Serial` por USB. Para Uno/Nano con Bluetooth usa la variante `SoftwareSerial`.
+
+Ejemplo con `arduino-cli` (Mega):
+
+```cmd
+arduino-cli upload -p COM4 --fqbn arduino:avr:mega Porton.ino
+```
+
+Verifica que el Arduino envía líneas con el formato: `D:<dist>,M:<0|1>`.
+
+---
+
+## 5) Web-app (dev y deploy en Render)
+
+### Ejecutar localmente (dev)
+
+```cmd
+cd web_app
+python -m venv venv_web
+call venv_web\Scripts\activate.bat
+pip install -r requirements.txt
+python app.py
+```
+
+### Deploy en Render (resumen)
+- Build command: `pip install -r web_app/requirements.txt`
+- Start command: `gunicorn -k eventlet -w 1 web_app.app:app`
+
+Importante: Render no puede acceder a puertos USB de tu PC; para datos reales en la nube usa un ESP32/ESP8266 que envíe lecturas por HTTP/WebSocket al backend, o ejecuta el backend en un dispositivo local (Raspberry Pi) conectado al Arduino.
+
+---
+
+## 6) Empaquetar para Windows (.exe)
+
+```cmd
+call venv\Scripts\activate.bat
+pip install pyinstaller
+pyinstaller --noconfirm --onefile --windowed dashboard.py
+```
+
+Si hay problemas con recursos (matplotlib/Tk), prueba `--onedir` para depurar.
+
+---
+
+## 7) Siguientes pasos recomendados (yo puedo hacerlo)
+
+- Limpiar los prints/diagnósticos en `dashboard.py` para dejarlo listo para producción.
+- Añadir un endpoint HTTP `/ingest` en `web_app/app.py` y ejemplo de código para ESP32 que haga POST con JSON {dist, mov} — así podrás enviar datos reales desde WiFi.
+- Generar `build_exe.bat` con la línea de PyInstaller y opciones recomendadas.
+
+Indica cuál de estos quieres que haga ahora y lo implemento.
 # Sketch_Porton — Web deploy notes# Dashboard Portón — despliegue local
 
 
