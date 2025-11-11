@@ -113,129 +113,171 @@ Si hay problemas con recursos (matplotlib/Tk), prueba `--onedir` para depurar.
 
 ## 7) Siguientes pasos recomendados (yo puedo hacerlo)
 
+## 🚀 Dashboard Portón Automatizado: Guía Maestra
+
+Bienvenido a la documentación oficial del proyecto. Esta guía está diseñada para llevarte desde cero hasta la ejecución del dashboard, previniendo los errores más comunes.
+
+## 🎯 ¿Qué hace este proyecto?
+
+Este proyecto monitorea y controla un portón automatizado usando un Arduino. Consiste en tres componentes principales que trabajan juntos:
+
+1.  **Firmware (Arduino):** El cerebro (`Porton.ino`) que lee sensores (distancia, movimiento) y controla el servo.
+2.  **Dashboard de Escritorio (Python):** Una aplicación (`dashboard.py`) para tu PC que se conecta por USB al Arduino, muestra datos en tiempo real y te permite enviar comandos.
+3.  **Dashboard Web (Python):** Una aplicación web (`web_app/`) que puede simular los datos o conectarse al Arduino, lista para desplegarse.
+
+---
+
+## 🗂️ Estructura de Archivos (Clave para evitar errores)
+
+Para que los comandos funcionen, tus archivos **deben** estar organizados así. El error más común (`No such file or directory`) ocurre si `dashboard.py` no está en la carpeta raíz.
+
+Porton-Arduino/
+  ├── venv/  <-- Carpeta del entorno virtual (se crea en el Paso 2)
+  ├── Sketch_Porton/
+  │   ├── Porton.ino  <-- El código que va en tu Arduino
+  │   ├── web_app/
+  │   │   ├── app.py
+  │   │   └── (otros archivos web...)
+  │   ├── dashboard.py  <-- ¡IMPORTANTE! El script de la app de escritorio
+  │   └── requirements.txt <-- Lista de librerías para la app de escritorio
+  └── README.md  <-- Esta guía
+
+
+---
+
+## 🛠️ Paso 1: Configuración del Hardware (Arduino)
+
+Antes de tocar Python, el Arduino debe estar listo.
+
+1.  **Conecta** tu Arduino Mega (o Uno) a la PC.
+2.  **Abre** el archivo `Sketch_Porton/Porton.ino` con tu IDE de Arduino.
+3.  **Verifica** que los pines definidos en el código (ej. `pinServo = 9`, `pinPIR = 2`) coincidan con tu cableado físico.
+4.  **Sube** el código a tu placa.
+5.  **Comprueba** que el Arduino envía datos. Abre el **Monitor Serie** (en el IDE de Arduino) y asegúrate de que estás viendo líneas como:
+    `D:150,M:0`
+    `D:149,M:0`
+    `D:45,M:1`
+    *Si no ves esto, la app de Python no funcionará.*
+
+
+---
+
+## 🐍 Paso 2: Configuración del Entorno (Python)
+
+Crearemos un "entorno virtual" (`venv`) para instalar las librerías de Python de forma limpia.
+
+1.  Abre una terminal (`cmd` o `PowerShell`).
+2.  Navega a la carpeta raíz de tu proyecto. (¡Aquí es donde está `dashboard.py`!)
+    ```cmd
+    cd C:\Users\DELL\OneDrive\Escritorio\Porton-Arduino
+    ```
+3.  **Crea el entorno virtual:** (Solo lo haces una vez)
+    ```cmd
+    python -m venv venv
+    ```
+4.  **Activa el entorno:** (Debes hacer esto **cada vez** que abras una nueva terminal)
+    ```cmd
+    call venv\Scripts\activate.bat
+    ```
+    *(Verás `(venv)` al inicio de tu línea de comandos)*.
+
+5.  **Instala las librerías:**
+    ```cmd
+    pip install -r requirements.txt
+    ```
+    *(Esto instalará `pyserial`, `matplotlib` y todo lo necesario).* 
+
+
+---
+
+## ⚙️ Paso 3: Configuración Crítica (¡Evita el 99% de Errores!)
+
+Casi todos los errores de ejecución se deben a un solo problema: el **Puerto COM**.
+
+1.  **Encuentra tu Puerto COM:**
+    * Con el Arduino conectado, ve al **Administrador de Dispositivos** de Windows.
+    * Expande la sección **"Puertos (COM & LPT)"**.
+    * Busca tu Arduino (ej. "USB Serial Port (COM4)"). Anota ese número `COM4`.
+
+2.  **Configura el Script:**
+    * Abre el archivo `dashboard.py` en tu editor (VS Code).
+    * Busca la línea de `PUERTO_SERIAL` (cerca del inicio).
+    * **Edita el valor** para que coincida exactamente con el puerto que encontraste.
+
+    ```python
+    # --- CONFIGURACIÓN GLOBAL ---
+    # ¡CAMBIA ESTO! Revisa tu IDE de Arduino o Administrador de Dispositivos
+    PUERTO_SERIAL = 'COM4' 
+    ```
+
+
+---
+
+## ▶️ Paso 4: Ejecutar el Dashboard
+
+Si completaste los pasos 1, 2 y 3, esto funcionará.
+
+1.  Abre tu terminal (asegúrate de que `(venv)` esté activo).
+    *Si no lo está, escribe: `call venv\Scripts\activate.bat`*
+
+2.  Ejecuta el script de Python:
+    ```cmd
+    python dashboard.py
+    ```
+
+3.  ¡Listo! Se abrirá la ventana del dashboard. Presiona **"Conectar"** y deberías empezar a ver los datos de tu Arduino.
+
+
+---
+
+## 🚨 Guía de Solución de Errores
+
+Si algo falla, busca tu error aquí.
+
+| Problema / Error | Solución (Causa Más Común) |
+| :--- | :--- |
+| `[Errno 2] No such file or directory` | **Estás en la carpeta incorrecta.** Asegúrate de que tu terminal esté en la carpeta raíz `Porton-Arduino` (donde está `dashboard.py`) antes de ejecutar `python dashboard.py`. |
+| `ModuleNotFoundError: No module named 'serial'` (o `matplotlib`) | **Olvidaste activar el entorno virtual.** Cierra la terminal, ábrela de nuevo, y ejecuta `call venv\Scripts\activate.bat` antes de correr el script. |
+| El dashboard dice: `Error: No se encuentra COM...` | **El `PUERTO_SERIAL` está mal.** Revisa el **Paso 3**. Asegúrate de que el COM en el código es el mismo que el del Administrador de Dispositivos. |
+| La app conecta, pero no llegan datos (todo en `---`) | **El Arduino no envía datos.** Revisa el **Paso 1**. Abre el Monitor Serie del IDE de Arduino. Si no ves líneas `D:...,M:...`, el problema está en el código o cableado del Arduino. |
+| `TclError: unknown option "-background"` | **Error de estilo en el código.** Estás usando `background=` en un widget `ttk`. Debes usar `ttk.Style().configure(...)` para cambiar la apariencia de esos widgets. |
+| `Too early to create variable: no default root window` | **Error de código.** Creaste una variable de Tkinter (como `tk.StringVar()`) *antes* de la línea `root = tk.Tk()`. Debes crear `root` primero. |
+
+
+---
+
+## 📎 Notas de despliegue rápido (web / Render)
+
+- El directorio `web_app/` contiene una versión web (Flask + SocketIO + Chart.js). Está pensada para deploy en Render, pero recuerda que los hosts en la nube no ven tu USB local. Si quieres datos reales en la nube necesitas un ESP32/ESP8266 o un gateway local.
+
+### Ejecutar localmente (resumen)
+
+```cmd
+cd Sketch_Porton\web_app
+python -m venv venv_web
+call venv_web\Scripts\activate.bat
+pip install -r requirements.txt
+python app.py
+```
+
+### Deploy (comandos para Render)
+
+- Build: `pip install -r web_app/requirements.txt`
+- Start: `gunicorn -k eventlet -w 1 web_app.app:app`
+
+
+---
+
+## ✅ Siguientes pasos recomendados (puedo hacerlo por ti)
+
 - Limpiar los prints/diagnósticos en `dashboard.py` para dejarlo listo para producción.
 - Añadir un endpoint HTTP `/ingest` en `web_app/app.py` y ejemplo de código para ESP32 que haga POST con JSON {dist, mov} — así podrás enviar datos reales desde WiFi.
 - Generar `build_exe.bat` con la línea de PyInstaller y opciones recomendadas.
 
-Indica cuál de estos quieres que haga ahora y lo implemento.
-# Sketch_Porton — Web deploy notes# Dashboard Portón — despliegue local
+Indica cuál de estas tres acciones quieres que haga ahora y me pongo a ello.
 
+---
 
+### Contacto rápido
 
-He creado una versión web del dashboard en `web_app/` pensada para desplegar en plataformas como Render.Este directorio contiene la interfaz de escritorio (Tkinter) que se conecta a tu Arduino vía puerto serie y muestra datos de distancia y detección de movimiento, además de permitir controlar un servo.
-
-
-
-Qué contieneArchivos importantes
-
-- `web_app/app.py` — Flask + Flask-SocketIO backend. Lee el puerto serie si `USE_SERIAL=true` y `pyserial` está instalado; si no, usa un simulador para generar datos.- `dashboard.py` — aplicación principal (Tkinter + Matplotlib).
-
-- `web_app/templates/index.html` — Interfaz con Chart.js.- `Porton.ino` — sketch Arduino (subir a la placa Mega/Nano/etc.).
-
-- `web_app/static/main.js` — Cliente socket.io y lógica del gráfico.- `requirements.txt` — dependencias Python: pyserial, matplotlib.
-
-- `web_app/requirements.txt` — Requisitos para deploy (Flask, Flask-SocketIO, eventlet, pyserial...).- `run_dashboard.bat` — script para ejecutar el dashboard en Windows (usa `venv` si existe).
-
-- `web_app/Procfile` — inicio con gunicorn+eventlet (útil para deploy en Render).- `setup_venv.bat` — crea un virtualenv y instala dependencias.
-
-
-
-Notas importantes sobre deploymentRequisitos
-
-- Render (y otros hosts en cloud) NO pueden acceder a tu Arduino conectado por USB en tu PC. Si quieres alojar completamente en la nube y recibir datos reales del Arduino, necesitas que el dispositivo envíe sus lecturas por red (HTTP, WebSocket o MQTT). Opciones:- Windows con Python 3.8+ instalado y `python` en PATH.
-
-  - Reemplazar Arduino por un ESP32/ESP8266 que envíe datos vía WiFi a tu backend en la nube.- Arduino Mega (o la placa que uses) con el sketch `Porton.ino` cargado.
-
-  - Mantener el Arduino en tu red local y ejecutar el backend en una máquina local que haga tunnel a la nube (solución más compleja y menos recomendable por seguridad).
-
-  - Ejecutar el backend en un Raspberry Pi o servidor local conectado por USB y exponer solo la UI en la nube.Pasos para ejecutar localmente (recomendado)
-
-
-
-Ejecución local (dev)1. Clona o abre esta carpeta en tu PC.
-
-```cmd2. (Opcional pero recomendado) Crea un entorno virtual e instala dependencias:
-
-cd /d "c:\Users\DELL\OneDrive\Escritorio\Porton-Arduino\Sketch_Porton\web_app"
-
-python -m venv venv_web    Abre cmd en esta carpeta y ejecuta:
-
-call venv_web\Scripts\activate.bat
-
-pip install -r requirements.txt    ```cmd
-
-# Para desarrollo    setup_venv.bat
-
-python app.py    ```
-
-# Para simular deploy (gunicorn + eventlet)
-
-gunicorn -k eventlet -w 1 web_app.app:app3. Ejecuta el dashboard:
-
-```
-
-    - Si usaste `setup_venv.bat`, puedes ejecutar:
-
-Variables de entorno
-
-- `USE_SERIAL` (true/false) — si true intenta leer de `SERIAL_PORT` usando pyserial.        ```cmd
-
-- `SERIAL_PORT` — puerto por defecto `COM4`.        call venv\Scripts\activate.bat
-
-- `SERIAL_BAUD` — velocidad por defecto `9600`.        python dashboard.py
-
-- `EMIT_INTERVAL` — intervalo del simulador en segundos.        ```
-
-
-
-Siguientes pasos sugeridos    - O usa el script que detecta el virtualenv automáticamente:
-
-- Si quieres deploy en Render con datos reales, migrar el Arduino a un módulo WiFi (ESP32) que publique lecturas a este backend.
-
-- Puedo ayudarte a implementar el endpoint HTTP/MQTT en el Arduino (o ESP) y adaptar el backend para recibirlo.        ```cmd
-
-        run_dashboard.bat
-        ```
-
-4. En la interfaz pulsar "Conectar" para abrir el puerto serie configurado en `dashboard.py` (por defecto `COM4`, 9600 bps).
-
-Notas
-- Si usas Arduino connected por USB asegúrate de seleccionar el puerto correcto en `dashboard.py` (PUERTO_SERIAL).
-- Si el Arduino está usando un módulo Bluetooth o `Serial1`, ajusta `Porton.ino` según corresponda.
-- Para crear un ejecutable `.exe` (opcional) puedo añadir un script con PyInstaller.
-
-Contacto
-- Si necesitas que prepare un instalador `.exe` o despliegue en Raspberry Pi, dime y lo preparo.
-# Sketch Portón (Sketch_Porton)
-
-Este directorio contiene el sketch mejorado para el proyecto del portón automatizado.
-
-Archivos:
-- `Porton.ino`  - Sketch principal. Incluye dos variantes (Serial1 para placas con puerto serie hardware adicional, y SoftwareSerial para Uno/Nano).
-- `I2C_Scanner.ino` - Pequeño sketch para detectar la dirección I2C de tu LCD.
-
-Cómo usar
-1. Abre `Porton.ino` en el IDE de Arduino.
-2. Si tu placa tiene `Serial1` (Mega, Due...), deja activa `VARIANTE_A` en la parte superior. Si usas UNO/NANO, comenta `#define VARIANTE_A` para usar SoftwareSerial y ajusta `BT_RX`/`BT_TX`.
-3. Ajusta pines si tu conexión difiere (servo, trig/echo, pir, pines BT).
-4. Verifica la dirección I2C del LCD con `I2C_Scanner.ino` si la pantalla no muestra texto (direcciones comunes: `0x27`, `0x3F`).
-5. Carga el sketch en la placa.
-6. Empareja tu módulo Bluetooth (HC-05/06) con la app móvil. Envía números con newline, por ejemplo `90\n`.
-
-Cableado recomendado
-- Servo: VCC 5V (o fuente externa si tu servo consume mucho), GND a GND común, señal a pin 9.
-- HC-SR04: Trig -> pin 3, Echo -> pin 4, Vcc 5V, GND.
-- PIR: salida digital -> pin 2, Vcc 5V, GND.
-- LCD I2C: SDA -> A4 (Uno/Nano) o pin SDA de la placa, SCL -> A5 o pin SCL, Vcc 5V, GND.
-- Módulo Bluetooth: TX -> RX (pin 10 si usas SoftwareSerial con BT_RX=10), RX -> TX (pin 11 si usas SoftwareSerial con BT_TX=11). O si usas `Serial1`, conecta al puerto serie hardware según tu placa.
-
-Notas
-- SoftwareSerial suele funcionar bien a 9600 baud. Evita baudios altos si hay problemas.
-- Protege la alimentación del servo (usa fuente separada si necesita corriente alta).
-- Si `pulseIn` devuelve 0, puede deberse a falta de eco o cableado incorrecto; revisa el sensor.
-
-Pruebas rápidas
-- Envia desde la app `90` seguido de "Enviar con nueva línea". Debes recibir `OK 90` desde el Arduino.
-- Observa la LCD para la distancia y la detección PIR.
-
-Si quieres, puedo: crear también un archivo de diagrama (texto) con esquemas de conexión, añadir un ejemplo de App Inventor o generar un pequeño script para simular comandos Bluetooth. Indica qué prefieres.
+Si necesitas que prepare un instalador `.exe`, el endpoint para ESP32 o el deploy en Render paso a paso, dime cuál prefieres y lo implemento.
