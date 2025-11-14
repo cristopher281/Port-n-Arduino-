@@ -50,6 +50,129 @@ FONT_TITLE = (FONT_FAM, 20, "bold")
 FONT_STAT_TITLE = (FONT_FAM, 12, "bold")
 FONT_STAT_DATA = (FONT_FAM, 40, "bold")
 
+# --- Nuevos widgets gráficos (antes de la clase principal) ---
+class ServoGauge(ttk.Frame):
+    """Un widget de 'dial' para mostrar el ángulo del servo (0-180)."""
+    def __init__(self, master, style_config, **kwargs):
+        super().__init__(master, **kwargs)
+        style = ttk.Style()
+        style.configure('Servo.TFrame', background=style_config['frame'])
+        self.config(style='Servo.TFrame', width=200, height=120)
+
+        self.cfg = style_config
+        self.angle = 0
+        self.canvas = tk.Canvas(self, width=200, height=110,
+                                bg=self.cfg['frame'],
+                                highlightthickness=0)
+        self.canvas.pack(pady=(10,0))
+        
+        self.lbl_angle = ttk.Label(self, text="0°",
+                                   style="AccentData.TLabel",
+                                   font=(FONT_FAM, 28, "bold"))
+        # ttk.Label may not accept background depending on theme; set via config
+        try:
+            self.lbl_angle.config(background=self.cfg['frame'])
+        except Exception:
+            pass
+        self.lbl_angle.place(relx=0.5, rely=0.7, anchor='center')
+
+        ttk.Label(self, text="Posición Servo",
+                  style="StatTitle.TLabel",
+                  background=self.cfg['frame']).place(relx=0.5, rely=0.1, anchor='center')
+
+        self.after(50, self.draw_gauge)
+
+    def draw_gauge(self):
+        """Dibuja el widget en el canvas."""
+        self.canvas.delete("all")
+        
+        cx, cy = 100, 100
+        r_outer = 90
+        r_inner = 70
+        
+        # Fondo del dial (180 grados)
+        self.canvas.create_arc(cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer,
+                               start=180, extent=-180,
+                               fill=self.cfg['plot_bg'], width=0)
+        
+        # Dial de valor
+        extent_val = -self.angle
+        self.canvas.create_arc(cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer,
+                               start=180, extent=extent_val,
+                               fill=self.cfg['accent'], width=0)
+        
+        # Cubierta interior (donut)
+        self.canvas.create_arc(cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner,
+                               start=180, extent=-180,
+                               fill=self.cfg['frame'], width=0)
+
+    def set_angle(self, angle):
+        """Actualiza el ángulo del gauge."""
+        if angle != self.angle:
+            self.angle = max(0, min(180, int(angle)))
+            self.lbl_angle.config(text=f"{self.angle}°")
+            self.draw_gauge()
+
+
+class SensorVisuals(ttk.Frame):
+    """Un widget para visualizar el PIR (como un LED) y la Distancia (como una barra)."""
+    def __init__(self, master, style_config, **kwargs):
+        super().__init__(master, **kwargs)
+        style = ttk.Style()
+        style.configure('Sensor.TFrame', background=style_config['frame'])
+        self.config(style='Sensor.TFrame', width=200, height=150)
+        
+        self.cfg = style_config
+
+        ttk.Label(self, text="Sensor Movimiento",
+                  style="StatTitle.TLabel",
+                  background=self.cfg['frame']).pack(pady=(5,0))
+        
+        self.canvas_mov = tk.Canvas(self, width=50, height=50,
+                                    bg=self.cfg['frame'], highlightthickness=0)
+        self.led = self.canvas_mov.create_oval(10, 10, 40, 40,
+                                               fill=self.cfg['plot_bg'],
+                                               outline=self.cfg['success'], width=2)
+        self.canvas_mov.pack()
+
+        ttk.Label(self, text="Distancia Obstáculo",
+                  style="StatTitle.TLabel",
+                  background=self.cfg['frame']).pack(pady=(10,0))
+        
+        self.canvas_dist = tk.Canvas(self, width=180, height=30,
+                                     bg=self.cfg['plot_bg'],
+                                     highlightthickness=1,
+                                     highlightbackground=self.cfg['text'])
+        self.dist_bar = self.canvas_dist.create_rectangle(0, 0, 0, 30,
+                                                          fill=self.cfg['accent'],
+                                                          width=0)
+        self.canvas_dist.pack()
+        self.lbl_dist = ttk.Label(self, text="-- cm",
+                                  style="TLabel",
+                                  background=self.cfg['frame'])
+        self.lbl_dist.pack()
+
+    def set_movimiento(self, detectado):
+        """Actualiza el color del LED."""
+        if detectado:
+            self.canvas_mov.itemconfig(self.led, fill=self.cfg['danger'],
+                                       outline=self.cfg['danger'])
+        else:
+            self.canvas_mov.itemconfig(self.led, fill=self.cfg['plot_bg'],
+                                       outline=self.cfg['success'])
+
+    def set_distancia(self, cm, max_cm=150):
+        """Actualiza la barra de distancia."""
+        try:
+            cm_val = int(cm)
+        except Exception:
+            cm_val = 0
+        self.lbl_dist.config(text=f"{cm_val} cm")
+        ancho_barra = (cm_val / max_cm) * 180
+        ancho_barra = max(0, min(180, ancho_barra))
+        self.canvas_dist.coords(self.dist_bar, 0, 0, ancho_barra, 30)
+
+
 class ArduinoDashboard:
     """
     Clase principal que encapsula la lógica y la GUI del dashboard "Next Level".
@@ -70,11 +193,26 @@ class ArduinoDashboard:
         # --- Variables de Tkinter ---
         self.datos_distancia = tk.StringVar(value="---")
         self.datos_movimiento = tk.StringVar(value="---")
+        self.datos_servo = tk.StringVar(value="---")
         self.estado_conexion = tk.StringVar(value="Desconectado")
 
         # --- Historial para gráficos ---
         self.dist_hist = deque(maxlen=HISTORY_SIZE)
         self.mov_hist = deque(maxlen=HISTORY_SIZE)
+        self.servo_hist = deque(maxlen=HISTORY_SIZE)
+
+        # --- Paleta de colores para los widgets ---
+        self.color_config = {
+            'frame': FRAME_COLOR,
+            'plot_bg': PLOT_BG_COLOR,
+            'text': TEXT_COLOR,
+            'accent': ACCENT_COLOR,
+            'success': SUCCESS_COLOR,
+            'danger': DANGER_COLOR
+        }
+
+        # --- ¡NUEVO! Variable para el ángulo del servo ---
+        self.servo_angle = tk.IntVar(value=90)
 
         # --- Inicializar Estilos y Widgets ---
         self._crear_estilos()
@@ -183,6 +321,13 @@ class ArduinoDashboard:
         btn_cerrar = ttk.Button(frame_botones, text="CERRAR", command=lambda: self.enviar_comando_servo(0))
         btn_cerrar.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
 
+        # Mostrar valor actual del servo
+        servo_row = ttk.Frame(frame_control, style="Card.TFrame")
+        servo_row.pack(fill=tk.X, pady=(10,0))
+        ttk.Label(servo_row, text="Servo:", style="StatTitle.TLabel").pack(side=tk.LEFT)
+        self.lbl_servo_valor = ttk.Label(servo_row, textvariable=self.datos_servo, style="DefaultData.TLabel")
+        self.lbl_servo_valor.pack(side=tk.LEFT, padx=(8,0))
+
         # --- [COLUMNA DERECHA] ---
         right_panel = ttk.Frame(main_frame, style="Card.TFrame", padding=10)
         right_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
@@ -253,6 +398,7 @@ class ArduinoDashboard:
             try:
                 if self.arduino.in_waiting > 0:
                     linea = self.arduino.readline().decode('utf-8').strip()
+                    # Aceptamos líneas que contienen D: y M:, opcionalmente S:
                     if linea.startswith("D:") and ",M:" in linea:
                         self.root.after(0, self.actualizar_datos, linea)
             except serial.SerialException:
@@ -277,69 +423,112 @@ class ArduinoDashboard:
             val_mov_s = partes[1].split(':')[1]
             val_mov = (val_mov_s == '1') 
 
+            # --- ¡NUEVO! Procesar Servo (opcional S:<valor>) ---
+            val_servo = 90  # valor por defecto si no viene
+            if len(partes) > 2 and partes[2].startswith("S:"):
+                try:
+                    val_servo_s = partes[2].split(':')[1]
+                    val_servo = int(val_servo_s)
+                except Exception:
+                    # si la parte S: no es un entero, lo ignoramos
+                    pass
+
+            # Actualizar textos y estilos según movimiento
             if val_mov:
                 self.datos_movimiento.set("¡DETECTADO!")
                 self.lbl_mov_valor.config(style="DangerData.TLabel")
             else:
                 self.datos_movimiento.set("NO")
                 self.lbl_mov_valor.config(style="SuccessData.TLabel")
-            
+
+            # Historial
             self.dist_hist.append(val_dist)
             self.mov_hist.append(val_mov)
-            
-            self._actualizar_grafico()
+            self.servo_hist.append(val_servo)
+
+            # Actualizar todos los gráficos (principal)
+            self._actualizar_grafico_principal()
+
+            # Llamar a la nueva función para actualizar los widgets/gauges
+            self._actualizar_widgets_graficos(val_dist, val_mov, val_servo)
 
         except Exception as e:
             print(f"Error procesando datos '{linea}': {e}")
 
-    def _actualizar_grafico(self):
-        """Dibuja el historial de distancia en el gráfico."""
-        self.ax.clear()
-        
-        # --- Estilo del gráfico (debe reaplicarse al limpiar) ---
-        self.ax.set_facecolor(PLOT_BG_COLOR)
-        self.ax.set_title('Historial de Distancia (cm)', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 14})
-        self.ax.set_xlabel('Muestras Recientes', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 10})
-        self.ax.set_ylabel('Distancia (cm)', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 10})
-        self.ax.grid(True, linestyle=':', color=TEXT_COLOR, alpha=0.2)
-        self.ax.tick_params(axis='both', colors=TEXT_COLOR)
-        self.ax.spines['top'].set_color(FRAME_COLOR)
-        self.ax.spines['right'].set_color(FRAME_COLOR)
-        self.ax.spines['bottom'].set_color(TEXT_COLOR)
-        self.ax.spines['left'].set_color(TEXT_COLOR)
-        
-        n = len(self.dist_hist)
-        if n > 0:
-            xs = list(range(-n + 1, 1))
-            ys = list(self.dist_hist)
-            
-            # --- ¡MEJORA DE IMPACTO! ---
-            # 1. Dibuja la línea
-            self.ax.plot(xs, ys, color=ACCENT_COLOR, marker='o', markersize=2, linewidth=2)
-            # 2. Dibuja el relleno semitransparente
-            self.ax.fill_between(xs, ys, color=ACCENT_COLOR, alpha=0.3)
-            
-            # Límites Y automáticos con margen
-            max_y = max(ys)
-            padding = max(max_y * 0.1, 10) # 10% de padding o 10cm
-            self.ax.set_ylim(0, max_y + padding) # Mínimo 0
-            self.ax.set_xlim(-HISTORY_SIZE, 0) # Eje X fijo
+    def _actualizar_grafico_principal(self):
+        """Dibuja el historial de distancia en el gráfico (principal)."""
+        # Protección contra reentradas y limitador de frecuencia de dibujo
+        try:
+            now = time.time()
+            if self._drawing:
+                return
+            if (now - self._last_draw_time) < self._min_draw_interval:
+                return
+            self._drawing = True
 
-            # --- Dibujar marcadores rojos cuando hubo movimiento ---
-            xm, ym = [], []
-            for idx, (mv, dist) in enumerate(zip(self.mov_hist, self.dist_hist)):
-                if mv: # Si el movimiento fue True
-                    xm.append(idx - n + 1)
-                    ym.append(dist)
-            
-            if xm:
-                self.ax.scatter(xm, ym, color=DANGER_COLOR, s=60, zorder=5, label='Movimiento')
-                self.ax.legend(loc='upper right', facecolor=FRAME_COLOR, labelcolor=TEXT_COLOR, frameon=False)
-        else:
-            self.ax.text(0.5, 0.5, 'Esperando datos...', transform=self.ax.transAxes, 
-                         ha='center', color=TEXT_COLOR, font=FONT_BOLD)
+            self.ax.clear()
 
-        self.canvas.draw_idle()
+            # --- Estilo del gráfico (debe reaplicarse al limpiar) ---
+            self.ax.set_facecolor(PLOT_BG_COLOR)
+            self.ax.set_title('Historial de Distancia (cm)', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 14})
+            self.ax.set_xlabel('Muestras Recientes', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 10})
+            self.ax.set_ylabel('Distancia (cm)', color=TEXT_COLOR, fontdict={'fontfamily': FONT_FAM, 'fontsize': 10})
+            self.ax.grid(True, linestyle=':', color=TEXT_COLOR, alpha=0.2)
+            self.ax.tick_params(axis='both', colors=TEXT_COLOR)
+            self.ax.spines['top'].set_color(FRAME_COLOR)
+            self.ax.spines['right'].set_color(FRAME_COLOR)
+            self.ax.spines['bottom'].set_color(TEXT_COLOR)
+            self.ax.spines['left'].set_color(TEXT_COLOR)
+
+            n = len(self.dist_hist)
+            if n > 0:
+                # Decimación para proteger la renderización si hay muchos puntos
+                max_points = 300
+                step = max(1, n // max_points)
+                xs = list(range(-n + 1, 1))[::step]
+                ys = list(self.dist_hist)[::step]
+                mov_flags = list(self.mov_hist)[::step]
+
+                # Línea + relleno
+                self.ax.plot(xs, ys, color=ACCENT_COLOR, marker='o', markersize=3, linewidth=2)
+                self.ax.fill_between(xs, ys, color=ACCENT_COLOR, alpha=0.3)
+
+                # Límites Y automáticos con margen
+                max_y = max(ys)
+                padding = max(max_y * 0.1, 10)
+                self.ax.set_ylim(0, max_y + padding)
+                self.ax.set_xlim(-HISTORY_SIZE, 0)
+
+                # Marcadores rojos donde hubo movimiento (sobre los puntos decimados)
+                xm, ym = [], []
+                for idx, (mv, dist) in enumerate(zip(mov_flags, ys)):
+                    if mv:
+                        xm.append(xs[idx])
+                        ym.append(dist)
+
+                if xm:
+                    self.ax.scatter(xm, ym, color=DANGER_COLOR, s=60, zorder=5, label='Movimiento')
+                    self.ax.legend(loc='upper right', facecolor=FRAME_COLOR, labelcolor=TEXT_COLOR, frameon=False)
+            else:
+                self.ax.text(0.5, 0.5, 'Esperando datos...', transform=self.ax.transAxes,
+                             ha='center', color=TEXT_COLOR, font=FONT_BOLD)
+
+            # Dibujado no bloqueante
+            try:
+                self.canvas.draw_idle()
+            except Exception:
+                # En situaciones raras draw_idle puede fallar; intentamos draw() como fallback
+                try:
+                    self.canvas.draw()
+                except Exception as e:
+                    print(f"Error dibujando canvas: {e}")
+
+            self._last_draw_time = now
+        except Exception as e:
+            # Protegemos el refresco del gráfico para evitar que un fallo bloquee la GUI
+            print(f"Error actualizando gráfico principal: {e}")
+        finally:
+            self._drawing = False
 
     def enviar_comando_servo(self, posicion):
         """Envía un comando de posición al Arduino."""
@@ -349,6 +538,41 @@ class ArduinoDashboard:
             print(f"Comando enviado a Python: {comando.strip()}")
         else:
             print("No se puede enviar comando: Arduino desconectado.")
+
+    def _actualizar_widgets_graficos(self, val_dist, val_mov, val_servo):
+        """Actualiza widgets (gauges/labels) con los últimos valores.
+
+        val_dist: int distancia en cm
+        val_mov: bool movimiento detectado
+        val_servo: int posicion del servo (grados)
+        """
+        try:
+            # Distancia y movimiento ya se actualizan en actualizar_datos,
+            # aquí nos aseguramos de refrescar cualquier widget adicional
+            # (como el valor del servo)
+            self.datos_servo.set(f"{val_servo}°")
+
+            # Opcional: puedes cambiar color/estilo del valor del servo
+            # según rango o estado
+            if val_mov:
+                self.lbl_servo_valor.config(style='DangerData.TLabel')
+            else:
+                self.lbl_servo_valor.config(style='AccentData.TLabel')
+            # Actualizar widgets opcionales si están instanciados
+            try:
+                if getattr(self, 'servo_gauge', None):
+                    self.servo_gauge.set_angle(val_servo)
+            except Exception as e:
+                print(f"Error actualizando ServoGauge: {e}")
+
+            try:
+                if getattr(self, 'sensor_visuals', None):
+                    self.sensor_visuals.set_movimiento(val_mov)
+                    self.sensor_visuals.set_distancia(val_dist)
+            except Exception as e:
+                print(f"Error actualizando SensorVisuals: {e}")
+        except Exception as e:
+            print(f"Error actualizando widgets/gauges: {e}")
 
     def _on_closing(self):
         """Manejador para el cierre de la ventana."""

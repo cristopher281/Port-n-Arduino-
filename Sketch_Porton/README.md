@@ -213,6 +213,47 @@ Casi todos los errores de ejecución se deben a un solo problema: el **Puerto CO
 
 ---
 
+## 🔧 Comandos clave: qué hacen, por qué usarlos y errores comunes
+
+Aquí tienes los dos comandos que usamos a menudo y una explicación práctica para que no te sorprenda ningún error.
+
+- Instalar dependencias (recomendado dentro del `venv`):
+
+```cmd
+python -m pip install -r requirements.txt
+```
+
+Qué hace:
+- Ejecuta el instalador `pip` usando el intérprete `python` activo. Esto garantiza que las librerías se instalen en el entorno de Python que estás usando (muy útil si tienes varias versiones de Python).
+- Instala todas las dependencias listadas en `requirements.txt` (p. ej. `pyserial`, `matplotlib`).
+
+Por qué usar `python -m pip` en lugar de `pip`:
+- Evita confusiones con instalaciones globales o `pip` de otra versión de Python. Con `python -m pip` te aseguras de usar el `pip` del intérprete `python` que se ejecuta.
+
+Errores comunes y soluciones:
+- "ModuleNotFoundError: No module named 'serial'": significa que no instalaste `pyserial` en el entorno activo. Solución: activa `venv` y vuelve a ejecutar el comando.
+- Permiso denegado / UAC / antivirus bloquea la instalación: ejecuta la terminal como Administrador o revisa el antivirus, o instala dentro del `venv` (no suele requerir permisos de admin).
+- Problemas TLS/SSL al descargar paquetes: puede ser un pip viejo; ejecuta `python -m pip install --upgrade pip` y vuelve a intentar.
+
+- Ejecutar el dashboard (desde la raíz del proyecto, con `venv` activo):
+
+```cmd
+python dashboard.py
+```
+
+Qué hace:
+- Inicia la aplicación de escritorio (Tkinter) que muestra los datos y controla el Arduino.
+
+Errores comunes y soluciones al ejecutar `dashboard.py`:
+- `ModuleNotFoundError` para `matplotlib` o `serial`: activa el `venv` y ejecuta `python -m pip install -r requirements.txt`.
+- `TclError: unknown option "-background"`: indica que el código pasó un argumento `background=` a widgets `ttk`. Solución: usa la versión del README para evitar ediciones que añadan `background=` a `ttk.*`, o usar `tk.Frame(..., bg=...)` o `ttk.Style()`.
+- `Too early to create variable: no default root window`: significa que se creó `tk.StringVar()` (u otra variable de Tk) antes de `root = tk.Tk()`. Solución: abrir `dashboard.py` y mover la creación de variables Tk después de crear la ventana `root`.
+- `Error: No se encuentra COM...` o `SerialException: could not open port 'COMx'`: revisa el **Paso 3** de este README (Administrador de dispositivos) y asegúrate de configurar `PUERTO_SERIAL` con el puerto correcto.
+- La GUI arranca pero queda congelada o Matplotlib lanza excepciones en callbacks: puede deberse a que el refresco del gráfico hace demasiadas operaciones en el hilo principal. Solución: cerrar la app, editar `dashboard.py` para usar `canvas.draw_idle()` en lugar de `canvas.draw()` y limitar el tamaño de `HISTORY_SIZE`.
+
+---
+
+
 ## ▶️ Paso 4: Ejecutar el Dashboard
 
 Si completaste los pasos 1, 2 y 3, esto funcionará.
